@@ -1,0 +1,1783 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CarePulse - Clinic Management System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0ea5e9',
+                            600: '#0284c7',
+                            700: '#0369a1',
+                            800: '#075985',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome & Lucide Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; }
+        
+        @media print {
+            body * { visibility: hidden !important; }
+            #printableArea, #printableArea * { visibility: visible !important; }
+            #printableArea { position: absolute !important; left: 0 !important; top: 0 !important; width: 100% !important; display: block !important; margin: 0 !important; padding: 20px !important; background: #fff !important; color: #000 !important; z-index: 999999 !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="h-full text-slate-800 dark:text-slate-100 dark:bg-slate-900 transition-colors duration-200">
+
+    <!-- Backup Reminder Banner -->
+    <div id="backupReminderBanner" class="hidden bg-amber-500 text-white px-4 py-2 text-sm flex items-center justify-between shadow-md relative z-50">
+        <div class="flex items-center space-x-2">
+            <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+            <span><strong>Backup Reminder:</strong> It has been more than 3 days since your last data backup. Please export your clinic data.</span>
+        </div>
+        <button onclick="exportDataBackup()" class="bg-amber-700 hover:bg-amber-800 text-white px-3 py-1 rounded-md text-xs font-semibold transition">
+            <i class="fa-solid fa-download mr-1"></i> Backup Now
+        </button>
+    </div>
+
+    <div class="flex h-screen overflow-hidden">
+        
+        <!-- SIDEBAR NAVIGATION -->
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-slate-300 flex flex-col transition-transform duration-300 -translate-x-full md:translate-x-0 md:static shrink-0">
+            <!-- Sidebar Header / Branding -->
+            <div class="h-16 flex items-center justify-between px-4 bg-slate-950 border-b border-slate-800">
+                <div class="flex items-center space-x-3">
+                    <img id="sidebarLogo" src="https://placehold.co/100x100/0ea5e9/ffffff?text=Clinic" alt="Clinic Logo" class="w-9 h-9 rounded-lg object-cover bg-white">
+                    <div>
+                        <h1 id="sidebarClinicName" class="font-bold text-white text-sm truncate max-w-[130px]">CarePulse Clinic</h1>
+                        <p id="sidebarTagline" class="text-xs text-slate-400 truncate max-w-[130px]">Healthcare Solution</p>
+                    </div>
+                </div>
+                <button onclick="toggleSidebar()" class="md:hidden text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- User Role Switcher -->
+            <div class="p-3 bg-slate-800/50 border-b border-slate-800 text-xs flex items-center justify-between">
+                <span class="text-slate-400">Active Role:</span>
+                <select id="userRoleSelect" onchange="changeUserRole(this.value)" class="bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white text-xs focus:ring-1 focus:ring-brand-500">
+                    <option value="Admin">Admin</option>
+                    <option value="Doctor">Doctor</option>
+                    <option value="Receptionist">Receptionist</option>
+                    <option value="Pharmacist">Pharmacist</option>
+                    <option value="Lab Tech">Lab Tech</option>
+                </select>
+            </div>
+
+            <!-- Nav Links -->
+            <nav class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-1">
+                <a href="#" onclick="switchTab('dashboardTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition active-nav" data-tab="dashboardTab">
+                    <i class="fa-solid fa-chart-line text-brand-500 w-5"></i>
+                    <span lang-key="nav_dashboard">Dashboard</span>
+                </a>
+                <a href="#" onclick="switchTab('patientsTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="patientsTab">
+                    <i class="fa-solid fa-user-injured text-emerald-400 w-5"></i>
+                    <span lang-key="nav_patients">Patients & Queue</span>
+                </a>
+                <a href="#" onclick="switchTab('appointmentsTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="appointmentsTab">
+                    <i class="fa-solid fa-calendar-check text-purple-400 w-5"></i>
+                    <span lang-key="nav_appointments">Appointments</span>
+                </a>
+                <a href="#" onclick="switchTab('emrTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="emrTab">
+                    <i class="fa-solid fa-stethoscope text-blue-400 w-5"></i>
+                    <span lang-key="nav_emr">Doctor Desk & EMR</span>
+                </a>
+                <a href="#" onclick="switchTab('billingTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="billingTab">
+                    <i class="fa-solid fa-file-invoice-dollar text-amber-400 w-5"></i>
+                    <span lang-key="nav_billing">Billing & Finance</span>
+                </a>
+                <a href="#" onclick="switchTab('pharmacyTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="pharmacyTab">
+                    <i class="fa-solid fa-pills text-rose-400 w-5"></i>
+                    <span lang-key="nav_pharmacy">Pharmacy Inventory</span>
+                </a>
+                <a href="#" onclick="switchTab('labTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="labTab">
+                    <i class="fa-solid fa-vial text-cyan-400 w-5"></i>
+                    <span lang-key="nav_lab">Laboratory Tests</span>
+                </a>
+                <a href="#" onclick="switchTab('waitingDisplayTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="waitingDisplayTab">
+                    <i class="fa-solid fa-tv text-indigo-400 w-5"></i>
+                    <span>Waiting TV Display</span>
+                </a>
+                <a href="#" onclick="switchTab('hrTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="hrTab">
+                    <i class="fa-solid fa-users text-teal-400 w-5"></i>
+                    <span>HR & Payroll</span>
+                </a>
+                <a href="#" onclick="switchTab('settingsTab')" class="nav-btn flex items-center space-x-3 px-3 py-2.5 rounded-lg text-sm font-medium hover:bg-slate-800 hover:text-white transition" data-tab="settingsTab">
+                    <i class="fa-solid fa-sliders text-slate-400 w-5"></i>
+                    <span lang-key="nav_settings">Settings & Branding</span>
+                </a>
+            </nav>
+
+            <!-- Sidebar Footer Controls -->
+            <div class="p-4 border-t border-slate-800 bg-slate-950/60 flex items-center justify-between text-xs">
+                <button onclick="toggleDarkMode()" class="text-slate-400 hover:text-white flex items-center space-x-1" title="Toggle Light/Dark Mode">
+                    <i class="fa-solid fa-moon text-sm"></i>
+                    <span id="themeModeText">Dark</span>
+                </button>
+                <button onclick="toggleLanguage()" class="text-slate-400 hover:text-white flex items-center space-x-1" title="Switch English/Urdu">
+                    <i class="fa-solid fa-language text-sm"></i>
+                    <span id="currentLangText">EN / اردو</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- MAIN CONTENT AREA -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            
+            <!-- TOP NAVBAR -->
+            <header class="h-16 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 flex items-center justify-between px-4 md:px-6 z-10">
+                <div class="flex items-center space-x-3">
+                    <button onclick="toggleSidebar()" class="md:hidden p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg">
+                        <i class="fa-solid fa-bars text-lg"></i>
+                    </button>
+                    <!-- Global Search -->
+                    <div class="relative max-w-xs md:max-w-md w-full">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                        <input type="text" id="globalSearchInput" onkeyup="handleGlobalSearch(this.value)" placeholder="Search Patient (Name, Phone, ID) [Ctrl+K]..." class="w-full pl-9 pr-4 py-1.5 bg-slate-100 dark:bg-slate-700 border-none rounded-lg text-sm focus:ring-2 focus:ring-brand-500 dark:text-white">
+                        <div id="searchResultsDropdown" class="hidden absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto"></div>
+                    </div>
+                </div>
+
+                <!-- Top Quick Actions -->
+                <div class="flex items-center space-x-2 md:space-x-3">
+                    <button onclick="openNewPatientModal()" class="hidden sm:flex items-center space-x-1 bg-brand-600 hover:bg-brand-700 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg font-medium shadow-sm transition" title="Quick Register Patient (Ctrl+N)">
+                        <i class="fa-solid fa-user-plus"></i>
+                        <span>+ Register</span>
+                    </button>
+
+                    <button onclick="openAiModal()" class="flex items-center space-x-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs md:text-sm px-3 py-1.5 rounded-lg font-medium shadow-sm transition">
+                        <i class="fa-solid fa-robot"></i>
+                        <span class="hidden sm:inline">AI Assist</span>
+                    </button>
+
+                    <!-- Backup Action Buttons -->
+                    <button onclick="exportDataBackup()" class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-sm" title="📥 Full Backup Download">
+                        <i class="fa-solid fa-download"></i>
+                    </button>
+                    <label class="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-lg text-sm cursor-pointer" title="📤 Restore Backup">
+                        <i class="fa-solid fa-upload"></i>
+                        <input type="file" id="importFileInput" onchange="importDataBackup(event)" class="hidden" accept=".json">
+                    </label>
+
+                    <!-- Multi-branch badge -->
+                    <select id="branchSelector" onchange="switchBranch(this.value)" class="hidden md:block bg-slate-100 dark:bg-slate-700 border-none text-xs rounded-lg px-2 py-1.5 font-medium dark:text-white">
+                        <option value="Main Clinic">Main Branch</option>
+                        <option value="City Branch">City Branch</option>
+                    </select>
+                </div>
+            </header>
+
+            <!-- MAIN CONTAINER WITH DYNAMIC VIEWS -->
+            <main class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar">
+                
+                <!-- 1. DASHBOARD TAB -->
+                <section id="dashboardTab" class="tab-content space-y-6">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Clinic Overview</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Welcome back! Here is today's real-time operational status.</p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300 rounded-full flex items-center gap-1">
+                                <span class="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span> Live Queue Active
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Metrics Cards -->
+                    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Today's Visits</p>
+                                <h3 id="statTodayVisits" class="text-2xl font-bold mt-1">0</h3>
+                                <p class="text-[11px] text-emerald-500 mt-1"><i class="fa-solid fa-arrow-up"></i> Live Tokens</p>
+                            </div>
+                            <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/40 text-brand-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-users"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Appointments</p>
+                                <h3 id="statTodayAppointments" class="text-2xl font-bold mt-1">0</h3>
+                                <p class="text-[11px] text-indigo-500 mt-1">Booked Slots</p>
+                            </div>
+                            <div class="w-12 h-12 bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-calendar-check"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Today Collection</p>
+                                <h3 id="statTodayRevenue" class="text-2xl font-bold mt-1">Rs 0</h3>
+                                <p class="text-[11px] text-emerald-500 mt-1"><i class="fa-solid fa-wallet"></i> Cash / Online</p>
+                            </div>
+                            <div class="w-12 h-12 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-money-bill-wave"></i>
+                            </div>
+                        </div>
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-500 dark:text-slate-400 font-medium">Pending Lab/Rx</p>
+                                <h3 id="statPendingOrders" class="text-2xl font-bold mt-1">0</h3>
+                                <p class="text-[11px] text-amber-500 mt-1">Action Required</p>
+                            </div>
+                            <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/40 text-amber-600 rounded-xl flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-hourglass-half"></i>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Analytics Charts & Active Queue -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Chart Container -->
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm">
+                            <h3 class="text-sm font-semibold mb-4">Patient Visit Trends & Revenue</h3>
+                            <div class="h-64">
+                                <canvas id="dashboardChart"></canvas>
+                            </div>
+                        </div>
+
+                        <!-- Waiting Queue Widget -->
+                        <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col">
+                            <div class="flex items-center justify-between mb-3">
+                                <h3 class="text-sm font-semibold">Live Waiting Queue</h3>
+                                <span class="text-xs bg-slate-100 dark:bg-slate-700 px-2 py-0.5 rounded font-mono" id="liveQueueCount">0 Patients</span>
+                            </div>
+                            <div id="dashboardQueueList" class="flex-1 overflow-y-auto space-y-2 max-h-64 custom-scrollbar text-xs">
+                                <!-- Dynamic Queue Items -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. PATIENTS & QUEUE TAB -->
+                <section id="patientsTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Patient Directory & Queue</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Manage patient records, check-ins, queue tokens, and details.</p>
+                        </div>
+                        <button onclick="openNewPatientModal()" class="bg-brand-600 hover:bg-brand-700 text-white text-sm px-4 py-2 rounded-lg font-medium shadow-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-user-plus"></i>
+                            <span>Register New Patient</span>
+                        </button>
+                    </div>
+
+                    <!-- Search Filter Bar -->
+                    <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-wrap gap-3 items-center justify-between">
+                        <div class="flex-1 min-w-[200px] relative">
+                            <i class="fa-solid fa-search absolute left-3 top-2.5 text-slate-400 text-sm"></i>
+                            <input type="text" id="patientSearchInput" onkeyup="filterPatientTable()" placeholder="Search Name, ID, Phone..." class="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg text-sm dark:text-white">
+                        </div>
+                        <div class="flex items-center space-x-2 text-xs">
+                            <button onclick="filterPatientTag('ALL')" class="px-3 py-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg font-medium">All</button>
+                            <button onclick="filterPatientTag('VIP')" class="px-3 py-1.5 bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 rounded-lg font-medium">VIP Only</button>
+                            <button onclick="filterPatientTag('CheckedIn')" class="px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 rounded-lg font-medium">In Queue</button>
+                        </div>
+                    </div>
+
+                    <!-- Patients Table -->
+                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-left border-collapse text-xs md:text-sm">
+                                <thead class="bg-slate-50 dark:bg-slate-700/50 text-slate-600 dark:text-slate-300 font-semibold border-b border-slate-200 dark:border-slate-700">
+                                    <tr>
+                                        <th class="p-3">ID / Token</th>
+                                        <th class="p-3">Patient Name</th>
+                                        <th class="p-3">Age/Gender</th>
+                                        <th class="p-3">Phone</th>
+                                        <th class="p-3">Check-In Status</th>
+                                        <th class="p-3">Tag / Allergies</th>
+                                        <th class="p-3 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="patientTableBody" class="divide-y divide-slate-100 dark:divide-slate-700/50">
+                                    <!-- Dynamic Patient Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 3. APPOINTMENTS TAB -->
+                <section id="appointmentsTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Appointment Scheduling</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Book doctor slots, manage waiting lists, and view calendar schedules.</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="openBookingModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm px-4 py-2 rounded-lg font-medium shadow-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-calendar-plus"></i>
+                                <span>Book Appointment</span>
+                            </button>
+                            <button onclick="printDailyAppointments()" class="bg-slate-700 hover:bg-slate-800 text-white text-sm px-3 py-2 rounded-lg font-medium">
+                                <i class="fa-solid fa-print mr-1"></i> Print Daily List
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                        <!-- Left: Doctor Leave & Slot Settings -->
+                        <div class="space-y-4">
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-3">
+                                <h3 class="font-semibold text-sm border-b pb-2 dark:border-slate-700">Doctor Leave Management</h3>
+                                <div>
+                                    <label class="block text-slate-500 mb-1">Block Date</label>
+                                    <input type="date" id="blockLeaveDate" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 text-xs dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-500 mb-1">Reason</label>
+                                    <input type="text" id="blockLeaveReason" placeholder="Conference / Annual Leave" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 text-xs dark:text-white">
+                                </div>
+                                <button onclick="saveDoctorLeave()" class="w-full bg-rose-600 hover:bg-rose-700 text-white py-1.5 rounded font-medium">Block Slot Calendar</button>
+                            </div>
+
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 text-xs space-y-2">
+                                <h3 class="font-semibold text-sm border-b pb-2 dark:border-slate-700">Waiting List</h3>
+                                <div id="appointmentWaitingList" class="space-y-2 max-h-48 overflow-y-auto">
+                                    <p class="text-slate-400 italic">No patients in waiting list.</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right: Appointments Calendar Grid & List -->
+                        <div class="lg:col-span-3 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                            <div class="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                                <h3 class="font-semibold text-sm">Scheduled Appointments Today</h3>
+                                <div class="flex space-x-1 text-xs">
+                                    <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">New</span>
+                                    <span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">Confirmed</span>
+                                    <span class="px-2 py-0.5 rounded bg-slate-200 text-slate-800 font-medium">Completed</span>
+                                    <span class="px-2 py-0.5 rounded bg-rose-100 text-rose-800 font-medium">Cancelled</span>
+                                </div>
+                            </div>
+
+                            <div id="appointmentsList" class="space-y-2 text-xs md:text-sm">
+                                <!-- Dynamic Appointments -->
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 4. DOCTOR DESK & EMR TAB -->
+                <section id="emrTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Doctor Desk & Clinical EMR</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Examine patients, record vitals, write E-Prescriptions, and issue letters.</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="loadRxTemplate('Fever')" class="text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 px-3 py-1.5 rounded-lg font-medium">Rx Template: Fever</button>
+                            <button onclick="loadRxTemplate('Diabetes')" class="text-xs bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 px-3 py-1.5 rounded-lg font-medium">Rx Template: Diabetes</button>
+                        </div>
+                    </div>
+
+                    <!-- EMR Main Desk Container -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        
+                        <!-- Left Column: Patient Select & Vitals -->
+                        <div class="space-y-4">
+                            <!-- Select Patient From Today Queue -->
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+                                <label class="block text-xs font-semibold text-slate-600 dark:text-slate-300">Select Patient from Queue</label>
+                                <select id="emrPatientSelect" onchange="onEmrPatientSelect(this.value)" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-sm dark:text-white">
+                                    <option value="">-- Choose Patient --</option>
+                                </select>
+
+                                <div id="emrPatientSummary" class="hidden text-xs space-y-1 p-2 bg-slate-50 dark:bg-slate-700/40 rounded border border-slate-200 dark:border-slate-700">
+                                    <p><strong>Name:</strong> <span id="emrPName">-</span></p>
+                                    <p><strong>Age/Gender:</strong> <span id="emrPAge">-</span></p>
+                                    <p><strong>Known Allergies:</strong> <span id="emrPAllergies" class="text-rose-500 font-bold">-</span></p>
+                                </div>
+                            </div>
+
+                            <!-- Vitals Entry -->
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3">
+                                <h3 class="text-xs font-semibold text-slate-600 dark:text-slate-300 border-b pb-2 dark:border-slate-700">Vitals Examination</h3>
+                                <div class="grid grid-cols-2 gap-2 text-xs">
+                                    <div>
+                                        <label class="block text-slate-500 mb-1">BP (mmHg)</label>
+                                        <input type="text" id="vitalBP" placeholder="120/80" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 mb-1">Pulse (bpm)</label>
+                                        <input type="number" id="vitalPulse" placeholder="72" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 mb-1">Temp (°F)</label>
+                                        <input type="text" id="vitalTemp" placeholder="98.6" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 mb-1">Weight (kg)</label>
+                                        <input type="number" id="vitalWeight" oninput="calculateBMI()" placeholder="70" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 mb-1">Height (cm)</label>
+                                        <input type="number" id="vitalHeight" oninput="calculateBMI()" placeholder="170" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                    </div>
+                                    <div>
+                                        <label class="block text-slate-500 mb-1">Auto BMI</label>
+                                        <input type="text" id="vitalBMI" readonly placeholder="24.2" class="w-full bg-slate-100 dark:bg-slate-800 border rounded p-1.5 font-bold text-brand-600">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Center/Right Column: Clinical Notes, Diagnosis, Prescription -->
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                            
+                            <!-- Chief Complaint & Voice Notes -->
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Chief Complaints & History</label>
+                                    <button onclick="startVoiceDictation('emrComplaints')" class="text-xs text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                                        <i class="fa-solid fa-microphone"></i> Voice Dictate
+                                    </button>
+                                </div>
+                                <textarea id="emrComplaints" rows="2" placeholder="Fever since 3 days, cough, headache..." class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg p-2 text-xs dark:text-white"></textarea>
+                            </div>
+
+                            <!-- Diagnosis ICD-10 -->
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <label class="block font-semibold mb-1">Diagnosis (ICD-10)</label>
+                                    <select id="emrDiagnosis" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg p-2 dark:text-white">
+                                        <option value="J06.9 - Acute Upper Respiratory Infection">J06.9 - Acute Upper Respiratory Infection</option>
+                                        <option value="E11 - Type 2 Diabetes Mellitus">E11 - Type 2 Diabetes Mellitus</option>
+                                        <option value="I10 - Essential Hypertension">I10 - Essential Hypertension</option>
+                                        <option value="A09 - Infectious Gastroenteritis">A09 - Infectious Gastroenteritis</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block font-semibold mb-1">Follow-Up Date</label>
+                                    <input type="date" id="emrFollowUp" class="w-full bg-slate-50 dark:bg-slate-700 border border-slate-300 dark:border-slate-600 rounded-lg p-2 dark:text-white">
+                                </div>
+                            </div>
+
+                            <!-- E-Prescription Medication Table -->
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between">
+                                    <label class="text-xs font-semibold text-slate-600 dark:text-slate-300">Prescribed Medicines</label>
+                                    <button onclick="addPrescriptionRow()" class="text-xs bg-emerald-600 hover:bg-emerald-700 text-white px-2 py-1 rounded">
+                                        + Add Medicine
+                                    </button>
+                                </div>
+
+                                <div class="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                                    <table class="w-full text-xs text-left">
+                                        <thead class="bg-slate-100 dark:bg-slate-700 font-semibold">
+                                            <tr>
+                                                <th class="p-2">Medicine Name</th>
+                                                <th class="p-2">Dosage</th>
+                                                <th class="p-2">Frequency</th>
+                                                <th class="p-2">Days</th>
+                                                <th class="p-2 text-right">Action</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="emrRxTableBody">
+                                            <!-- Dynamic Rx Rows -->
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="flex flex-wrap gap-2 pt-2 border-t dark:border-slate-700">
+                                <button onclick="saveAndPrintPrescription()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs px-4 py-2 rounded-lg font-medium shadow flex items-center gap-1">
+                                    <i class="fa-solid fa-print"></i> Save & Print Rx
+                                </button>
+                                <button onclick="generateMedicalCertificate()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-2 rounded-lg font-medium">
+                                    <i class="fa-solid fa-file-contract mr-1"></i> Medical Certificate
+                                </button>
+                                <button onclick="generateReferralLetter()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs px-3 py-2 rounded-lg font-medium">
+                                    <i class="fa-solid fa-share-nodes mr-1"></i> Referral Letter
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 5. BILLING & FINANCE TAB -->
+                <section id="billingTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Billing & Financial Reports</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Generate consultation bills, record clinic expenses, and track P&L.</p>
+                        </div>
+                        <button onclick="openNewBillModal()" class="bg-amber-600 hover:bg-amber-700 text-white text-sm px-4 py-2 rounded-lg font-medium shadow-sm">
+                            <i class="fa-solid fa-receipt mr-1"></i> Create New Invoice
+                        </button>
+                    </div>
+
+                    <!-- Financial Summary & Invoices Table -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <!-- Invoice List -->
+                        <div class="lg:col-span-2 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm space-y-3">
+                            <h3 class="text-sm font-semibold">Recent Receipts & Invoices</h3>
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-xs text-left">
+                                    <thead class="bg-slate-50 dark:bg-slate-700 font-semibold border-b dark:border-slate-700">
+                                        <tr>
+                                            <th class="p-2">Invoice #</th>
+                                            <th class="p-2">Patient</th>
+                                            <th class="p-2">Amount</th>
+                                            <th class="p-2">Payment Mode</th>
+                                            <th class="p-2">Date</th>
+                                            <th class="p-2 text-right">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="billingTableBody">
+                                        <!-- Dynamic Bills -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Expenses & Doctor Commission Widget -->
+                        <div class="space-y-4">
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-3 text-xs">
+                                <h3 class="font-semibold text-sm border-b pb-2 dark:border-slate-700">Record Clinic Expense</h3>
+                                <div>
+                                    <label class="block text-slate-500 mb-1">Expense Title</label>
+                                    <input type="text" id="expenseTitle" placeholder="Electricity Bill / Rent" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block text-slate-500 mb-1">Amount (Rs)</label>
+                                    <input type="number" id="expenseAmount" placeholder="5000" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1.5 dark:text-white">
+                                </div>
+                                <button onclick="saveClinicExpense()" class="w-full bg-slate-800 hover:bg-slate-900 text-white py-1.5 rounded font-medium">Add Expense</button>
+                            </div>
+
+                            <div class="bg-white dark:bg-slate-800 p-4 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm text-xs space-y-2">
+                                <h3 class="font-semibold text-sm border-b pb-2 dark:border-slate-700">Profit & Loss Summary</h3>
+                                <div class="flex justify-between"><span>Total Revenue:</span><strong id="summaryTotalRevenue">Rs 0</strong></div>
+                                <div class="flex justify-between text-rose-500"><span>Total Expenses:</span><strong id="summaryTotalExpenses">Rs 0</strong></div>
+                                <div class="flex justify-between text-emerald-600 border-t pt-1 font-bold"><span>Net Profit:</span><strong id="summaryNetProfit">Rs 0</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 6. PHARMACY INVENTORY TAB -->
+                <section id="pharmacyTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Pharmacy Stock & Inventory</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Track medicine stock level, batch numbers, and expiry alerts.</p>
+                        </div>
+                        <button onclick="openAddMedicineModal()" class="bg-rose-600 hover:bg-rose-700 text-white text-sm px-4 py-2 rounded-lg font-medium shadow-sm">
+                            <i class="fa-solid fa-plus mr-1"></i> Add Stock Medicine
+                        </button>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 dark:bg-slate-700 font-semibold border-b dark:border-slate-700">
+                                    <tr>
+                                        <th class="p-2.5">Medicine Name</th>
+                                        <th class="p-2.5">Batch No</th>
+                                        <th class="p-2.5">Qty Stock</th>
+                                        <th class="p-2.5">Price / Unit</th>
+                                        <th class="p-2.5">Expiry Date</th>
+                                        <th class="p-2.5">Status</th>
+                                        <th class="p-2.5 text-right">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="pharmacyStockTable">
+                                    <!-- Dynamic Stock Rows -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 7. LABORATORY TAB -->
+                <section id="labTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Laboratory Test Management</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Manage lab test master catalog, sample workflow, and test reports.</p>
+                        </div>
+                        <button onclick="openNewLabOrderModal()" class="bg-cyan-600 hover:bg-cyan-700 text-white text-sm px-4 py-2 rounded-lg font-medium shadow-sm">
+                            <i class="fa-solid fa-flask mr-1"></i> Create Lab Order
+                        </button>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+                        <h3 class="text-sm font-semibold mb-3">Recent Lab Orders</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 dark:bg-slate-700 font-semibold border-b dark:border-slate-700">
+                                    <tr>
+                                        <th class="p-2.5">Order ID</th>
+                                        <th class="p-2.5">Patient</th>
+                                        <th class="p-2.5">Test Requested</th>
+                                        <th class="p-2.5">Sample Status</th>
+                                        <th class="p-2.5">Result Status</th>
+                                        <th class="p-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="labOrdersTableBody">
+                                    <!-- Dynamic Lab Orders -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 8. WAITING TV DISPLAY TAB -->
+                <section id="waitingDisplayTab" class="tab-content hidden space-y-6">
+                    <div class="flex items-center justify-between bg-slate-900 text-white p-4 rounded-xl">
+                        <div>
+                            <h2 class="text-xl font-bold">Waiting Room TV Display Mode</h2>
+                            <p class="text-xs text-slate-400">Display active patient queue tokens on waiting room screen.</p>
+                        </div>
+                        <button onclick="toggleFullScreenTv()" class="bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+                            <i class="fa-solid fa-expand mr-1"></i> Launch Full Screen TV
+                        </button>
+                    </div>
+
+                    <div id="tvContainer" class="bg-slate-950 text-white p-8 rounded-2xl border border-slate-800 text-center space-y-8">
+                        <div class="border-b border-slate-800 pb-4">
+                            <h1 id="tvClinicTitle" class="text-3xl font-extrabold text-brand-400">CarePulse Clinic</h1>
+                            <p class="text-slate-400 text-sm">Now Calling Patient Tokens</p>
+                        </div>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div class="bg-slate-900 p-6 rounded-xl border border-emerald-500/30">
+                                <span class="text-xs text-emerald-400 uppercase tracking-widest font-bold">Now Serving In Consultation Room</span>
+                                <div id="tvCurrentToken" class="text-6xl font-black text-emerald-400 my-4">--</div>
+                                <div id="tvCurrentPatient" class="text-xl font-medium">Please Wait...</div>
+                            </div>
+                            <div class="bg-slate-900 p-6 rounded-xl border border-slate-800">
+                                <span class="text-xs text-slate-400 uppercase tracking-widest font-bold">Next In Queue</span>
+                                <div id="tvNextQueueList" class="space-y-3 mt-4 text-left">
+                                    <!-- Dynamic Next Patients -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 9. HR & PAYROLL TAB -->
+                <section id="hrTab" class="tab-content hidden space-y-6">
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <div>
+                            <h2 class="text-xl font-bold tracking-tight">Staff Attendance & Payroll</h2>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Manage clinic staff biometric simulation, check-in, and monthly salary.</p>
+                        </div>
+                        <button onclick="simulateBiometricCheckIn()" class="bg-teal-600 hover:bg-teal-700 text-white text-sm px-4 py-2 rounded-lg font-medium shadow-sm">
+                            <i class="fa-solid fa-fingerprint mr-1"></i> Biometric Clock-In
+                        </button>
+                    </div>
+
+                    <div class="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 shadow-sm">
+                        <h3 class="text-sm font-semibold mb-3">Clinic Staff Roster</h3>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-xs text-left">
+                                <thead class="bg-slate-50 dark:bg-slate-700 font-semibold border-b dark:border-slate-700">
+                                    <tr>
+                                        <th class="p-2.5">Staff Name</th>
+                                        <th class="p-2.5">Role</th>
+                                        <th class="p-2.5">Shift Status</th>
+                                        <th class="p-2.5">Monthly Salary</th>
+                                        <th class="p-2.5 text-right">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="staffTableBody">
+                                    <!-- Dynamic Staff -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 10. SETTINGS & BRANDING TAB -->
+                <section id="settingsTab" class="tab-content hidden space-y-6">
+                    <div>
+                        <h2 class="text-xl font-bold tracking-tight">Clinic Branding & Data Settings</h2>
+                        <p class="text-xs text-slate-500 dark:text-slate-400">Customize clinic info on printable slips, logo, backup options, and system parameters.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Branding Configuration (Req 108) -->
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                            <h3 class="text-sm font-semibold border-b pb-2 dark:border-slate-700">Printable Letterhead & Clinic Details</h3>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-slate-600 dark:text-slate-300 mb-1">Clinic Logo (Upload from PC/Mobile)</label>
+                                <div class="flex items-center space-x-4">
+                                    <img id="settingsLogoPreview" src="https://placehold.co/100x100/0ea5e9/ffffff?text=Clinic" class="w-16 h-16 rounded-lg object-cover border">
+                                    <input type="file" id="clinicLogoInput" accept="image/*" onchange="handleLogoUpload(event)" class="text-xs text-slate-500">
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                                <div>
+                                    <label class="block font-medium mb-1">Clinic Name</label>
+                                    <input type="text" id="settingClinicName" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-2 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-1">Clinic Tagline</label>
+                                    <input type="text" id="settingClinicTagline" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-2 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-1">Doctor Name & Degrees</label>
+                                    <input type="text" id="settingDoctorDetails" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-2 dark:text-white">
+                                </div>
+                                <div>
+                                    <label class="block font-medium mb-1">Phone Number</label>
+                                    <input type="text" id="settingClinicPhone" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-2 dark:text-white">
+                                </div>
+                                <div class="md:col-span-2">
+                                    <label class="block font-medium mb-1">Full Clinic Address</label>
+                                    <input type="text" id="settingClinicAddress" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-2 dark:text-white">
+                                </div>
+                            </div>
+
+                            <button onclick="saveClinicSettings()" class="bg-brand-600 hover:bg-brand-700 text-white text-xs px-4 py-2 rounded-lg font-medium shadow">
+                                Save Branding Settings
+                            </button>
+                        </div>
+
+                        <!-- Data Backup & System Restore -->
+                        <div class="bg-white dark:bg-slate-800 p-6 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm space-y-4">
+                            <h3 class="text-sm font-semibold border-b pb-2 dark:border-slate-700">System Data Management (100% Offline LocalStorage)</h3>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Export your entire clinic state into a JSON backup file to move to another PC or GitHub Pages hosting.</p>
+
+                            <div class="flex flex-col space-y-3 pt-2">
+                                <button onclick="exportDataBackup()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs py-2.5 rounded-lg font-medium shadow flex items-center justify-center space-x-2">
+                                    <i class="fa-solid fa-download text-sm"></i>
+                                    <span>📥 Full Backup Download (JSON)</span>
+                                </button>
+
+                                <label class="w-full bg-slate-700 hover:bg-slate-800 text-white text-xs py-2.5 rounded-lg font-medium shadow flex items-center justify-center space-x-2 cursor-pointer">
+                                    <i class="fa-solid fa-upload text-sm"></i>
+                                    <span>📤 Restore Backup JSON File</span>
+                                    <input type="file" accept=".json" onchange="importDataBackup(event)" class="hidden">
+                                </label>
+                            </div>
+
+                            <!-- Audit Logs -->
+                            <div class="pt-4 border-t dark:border-slate-700">
+                                <h4 class="text-xs font-semibold mb-2">System Audit Activity Log</h4>
+                                <div id="auditLogList" class="bg-slate-50 dark:bg-slate-900 p-2 rounded text-[11px] font-mono h-32 overflow-y-auto space-y-1 custom-scrollbar">
+                                    <!-- Dynamic Audit Logs -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- MODAL: REGISTER NEW PATIENT -->
+    <div id="newPatientModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto custom-scrollbar p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                <h3 class="font-bold text-lg">Patient Registration</h3>
+                <button onclick="closeModal('newPatientModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form id="newPatientForm" onsubmit="handlePatientRegistration(event)" class="space-y-4 text-xs md:text-sm">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-medium mb-1">Full Patient Name *</label>
+                        <input type="text" id="pFormName" required class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Phone Number (Pakistani Format) *</label>
+                        <input type="text" id="pFormPhone" required placeholder="03001234567" class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Age *</label>
+                        <input type="number" id="pFormAge" required class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Gender *</label>
+                        <select id="pFormGender" required class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                            <option value="Male">Male</option>
+                            <option value="Female">Female</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Emergency Contact / Guardian</label>
+                        <input type="text" id="pFormGuardian" placeholder="Father/Spouse Name & Phone" class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Patient Tag</label>
+                        <select id="pFormTag" class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                            <option value="Regular">Regular</option>
+                            <option value="VIP">VIP Patient</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Drug Allergies</label>
+                        <input type="text" id="pFormAllergies" placeholder="Penicillin, Sulfa..." class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                    <div>
+                        <label class="block font-medium mb-1">Chronic Diseases</label>
+                        <input type="text" id="pFormChronic" placeholder="Diabetes, BP, Asthma..." class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                    <div class="md:col-span-2">
+                        <label class="block font-medium mb-1">Full Address</label>
+                        <input type="text" id="pFormAddress" class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                    </div>
+                </div>
+
+                <!-- WebCam Simulation & Photo Capture -->
+                <div class="border-t pt-3 dark:border-slate-700 space-y-2">
+                    <label class="block font-medium">Patient Photo Capture (Webcam / Upload)</label>
+                    <div class="flex items-center space-x-3">
+                        <div class="w-20 h-20 bg-slate-100 dark:bg-slate-700 rounded-lg overflow-hidden flex items-center justify-center border">
+                            <img id="pFormPhotoPreview" src="https://placehold.co/100x100/cbd5e1/475569?text=Photo" class="w-full h-full object-cover">
+                        </div>
+                        <input type="file" accept="image/*" onchange="handlePatientPhotoUpload(event)" class="text-xs">
+                    </div>
+                </div>
+
+                <!-- Digital Consent Signature -->
+                <div class="border-t pt-3 dark:border-slate-700 space-y-2">
+                    <label class="block font-medium">Digital Consent Signature</label>
+                    <canvas id="consentCanvas" width="400" height="80" class="border rounded bg-slate-50 dark:bg-slate-900 w-full cursor-crosshair"></canvas>
+                    <button type="button" onclick="clearConsentCanvas()" class="text-xs text-rose-500 underline">Clear Signature</button>
+                </div>
+
+                <div class="flex justify-end space-x-2 pt-4 border-t dark:border-slate-700">
+                    <button type="button" onclick="closeModal('newPatientModal')" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-brand-600 text-white rounded-lg font-medium shadow">Save & Issue Token Slip</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: BOOK APPOINTMENT -->
+    <div id="bookingModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                <h3 class="font-bold text-lg">Book Patient Appointment</h3>
+                <button onclick="closeModal('bookingModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <form onsubmit="handleBookAppointment(event)" class="space-y-3 text-xs md:text-sm">
+                <div>
+                    <label class="block font-medium mb-1">Select Registered Patient</label>
+                    <select id="appPatientSelect" required class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                        <!-- Dynamic Options -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-medium mb-1">Appointment Date</label>
+                    <input type="date" id="appDate" required class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                </div>
+                <div>
+                    <label class="block font-medium mb-1">Time Slot</label>
+                    <select id="appTimeSlot" required class="w-full bg-slate-50 dark:bg-slate-700 border rounded-lg p-2 dark:text-white">
+                        <option value="09:00 AM">09:00 AM</option>
+                        <option value="09:15 AM">09:15 AM</option>
+                        <option value="09:30 AM">09:30 AM</option>
+                        <option value="10:00 AM">10:00 AM</option>
+                        <option value="11:00 AM">11:00 AM</option>
+                        <option value="05:00 PM">05:00 PM</option>
+                    </select>
+                </div>
+                <div class="flex justify-end space-x-2 pt-3">
+                    <button type="button" onclick="closeModal('bookingModal')" class="px-4 py-2 bg-slate-200 dark:bg-slate-700 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-5 py-2 bg-indigo-600 text-white rounded-lg font-medium shadow">Confirm Booking</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: AI ASSISTANT (Req 100) -->
+    <div id="aiModal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex items-center justify-between border-b pb-3 dark:border-slate-700">
+                <div class="flex items-center space-x-2">
+                    <i class="fa-solid fa-robot text-indigo-600 text-xl"></i>
+                    <h3 class="font-bold text-lg">CarePulse AI Clinical Assistant</h3>
+                </div>
+                <button onclick="closeModal('aiModal')" class="text-slate-400 hover:text-slate-600 dark:hover:text-white">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <div id="aiChatBox" class="bg-slate-50 dark:bg-slate-900 p-3 rounded-lg h-60 overflow-y-auto space-y-2 text-xs custom-scrollbar">
+                <div class="bg-indigo-100 dark:bg-indigo-950/60 p-2 rounded max-w-[85%] text-indigo-900 dark:text-indigo-200">
+                    Hello Doctor! Ask me anything like "What medicine given to P1001 last time?", "Show total revenue today", or "Find patients with hypertension".
+                </div>
+            </div>
+
+            <div class="flex space-x-2">
+                <input type="text" id="aiQueryInput" placeholder="Ask AI Assistant..." class="flex-1 bg-slate-100 dark:bg-slate-700 border-none rounded-lg px-3 py-2 text-xs dark:text-white focus:ring-2 focus:ring-indigo-500">
+                <button onclick="handleAiQuery()" class="bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-semibold">Ask</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- PRINTABLE CONTAINER FOR SLIPS / PRESCRIPTIONS / RECEIPTS (Req 107 & 108) -->
+    <div id="printableArea" class="hidden">
+        <!-- Dynamic Print Content Injected Here -->
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        /* ==========================================================================
+           CLINIC MANAGEMENT SYSTEM - VANILLA JS CORE STATE & STORAGE ENGINE
+           ========================================================================== */
+        
+        // Initial Default Settings
+        const DEFAULT_SETTINGS = {
+            clinicName: "CarePulse Medical Center",
+            tagline: "Advanced Healthcare & Diagnostic Clinic",
+            doctorDetails: "Dr. Shahbaz Ahmed (MBBS, FCPS)",
+            phone: "+92 300 1234567",
+            address: "Suite 402, Medical Enclave, Main Boulevard, Lahore",
+            logoUrl: "https://placehold.co/100x100/0ea5e9/ffffff?text=Clinic",
+            lastBackupDate: new Date().toISOString().split('T')[0]
+        };
+
+        // Main In-Memory Data Storage
+        let appState = {
+            settings: JSON.parse(localStorage.getItem('cp_settings')) || DEFAULT_SETTINGS,
+            patients: JSON.parse(localStorage.getItem('cp_patients')) || [
+                { id: "P1001", name: "Muhammad Ali", age: 34, gender: "Male", phone: "03001112233", address: "Model Town, Lahore", tag: "VIP", allergies: "Penicillin", chronic: "Hypertension", status: "CheckedIn", token: 1, checkInTime: "09:15 AM", guardian: "Father" },
+                { id: "P1002", name: "Ayesha Khan", age: 28, gender: "Female", phone: "03214445566", address: "Gulberg III, Lahore", tag: "Regular", allergies: "None", chronic: "None", status: "CheckedIn", token: 2, checkInTime: "09:40 AM", guardian: "Spouse" }
+            ],
+            appointments: JSON.parse(localStorage.getItem('cp_appointments')) || [
+                { id: "APP-101", patientId: "P1001", patientName: "Muhammad Ali", date: new Date().toISOString().split('T')[0], time: "10:00 AM", status: "Confirmed" }
+            ],
+            emr: JSON.parse(localStorage.getItem('cp_emr')) || [],
+            bills: JSON.parse(localStorage.getItem('cp_bills')) || [
+                { id: "INV-1001", patientName: "Muhammad Ali", amount: 1500, mode: "Cash", date: new Date().toISOString().split('T')[0] }
+            ],
+            expenses: JSON.parse(localStorage.getItem('cp_expenses')) || [],
+            pharmacy: JSON.parse(localStorage.getItem('cp_pharmacy')) || [
+                { name: "Paracetamol 500mg", batch: "BT-902", stock: 150, price: 5, expiry: "2027-12-31" },
+                { name: "Amoxicillin 250mg Capsule", batch: "BT-401", stock: 45, price: 15, expiry: "2026-06-30" }
+            ],
+            labOrders: JSON.parse(localStorage.getItem('cp_lab')) || [],
+            staff: JSON.parse(localStorage.getItem('cp_staff')) || [
+                { name: "Dr. Shahbaz Ahmed", role: "Doctor", status: "Checked In", salary: 150000 },
+                { name: "Sara Fatima", role: "Receptionist", status: "Checked In", salary: 35000 }
+            ],
+            auditLogs: JSON.parse(localStorage.getItem('cp_audit')) || [],
+            currentRole: "Admin",
+            currentLang: "EN",
+            currentBranch: "Main Clinic",
+            capturedPhotoBase64: null
+        };
+
+        // Save State to LocalStorage
+        function saveData() {
+            localStorage.setItem('cp_settings', JSON.stringify(appState.settings));
+            localStorage.setItem('cp_patients', JSON.stringify(appState.patients));
+            localStorage.setItem('cp_appointments', JSON.stringify(appState.appointments));
+            localStorage.setItem('cp_emr', JSON.stringify(appState.emr));
+            localStorage.setItem('cp_bills', JSON.stringify(appState.bills));
+            localStorage.setItem('cp_expenses', JSON.stringify(appState.expenses));
+            localStorage.setItem('cp_pharmacy', JSON.stringify(appState.pharmacy));
+            localStorage.setItem('cp_lab', JSON.stringify(appState.labOrders));
+            localStorage.setItem('cp_staff', JSON.stringify(appState.staff));
+            localStorage.setItem('cp_audit', JSON.stringify(appState.auditLogs));
+        }
+
+        // Add Audit Trail Log
+        function logAudit(action) {
+            const entry = `[${new Date().toLocaleTimeString()}] (${appState.currentRole}) ${action}`;
+            appState.auditLogs.unshift(entry);
+            saveData();
+            renderAuditLogs();
+        }
+
+        /* ==========================================================================
+           INITIALIZATION & TAB SWITCHING
+           ========================================================================== */
+        window.onload = function() {
+            applyBranding();
+            renderDashboardMetrics();
+            renderPatientsTable();
+            renderAppointmentsList();
+            renderEmrPatientQueue();
+            renderBillingTable();
+            renderPharmacyStock();
+            renderLabOrders();
+            renderStaffTable();
+            renderAuditLogs();
+            checkBackupReminder();
+            logAudit("System initialized on " + appState.currentBranch);
+
+            // Register Keyboard Shortcuts (Ctrl+N, Ctrl+K)
+            document.addEventListener('keydown', function(e) {
+                if (e.ctrlKey && e.key.toLowerCase() === 'n') {
+                    e.preventDefault();
+                    openNewPatientModal();
+                }
+                if (e.ctrlKey && e.key.toLowerCase() === 'k') {
+                    e.preventDefault();
+                    document.getElementById('globalSearchInput').focus();
+                }
+            });
+        };
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if (btn.getAttribute('data-tab') === tabId) {
+                    btn.classList.add('bg-slate-800', 'text-white');
+                } else {
+                    btn.classList.remove('bg-slate-800', 'text-white');
+                }
+            });
+
+            if (window.innerWidth < 768) {
+                toggleSidebar();
+            }
+        }
+
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('-translate-x-full');
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+            const isDark = document.documentElement.classList.contains('dark');
+            document.getElementById('themeModeText').innerText = isDark ? "Light" : "Dark";
+            logAudit("Toggled Dark/Light mode");
+        }
+
+        /* ==========================================================================
+           BRANDING & SETTINGS MANAGEMENT (Req 108)
+           ========================================================================== */
+        function applyBranding() {
+            const s = appState.settings;
+            document.getElementById('sidebarClinicName').innerText = s.clinicName;
+            document.getElementById('sidebarTagline').innerText = s.tagline;
+            document.getElementById('sidebarLogo').src = s.logoUrl;
+            document.getElementById('tvClinicTitle').innerText = s.clinicName;
+
+            // Settings Inputs
+            document.getElementById('settingClinicName').value = s.clinicName;
+            document.getElementById('settingClinicTagline').value = s.tagline;
+            document.getElementById('settingDoctorDetails').value = s.doctorDetails;
+            document.getElementById('settingClinicPhone').value = s.phone;
+            document.getElementById('settingClinicAddress').value = s.address;
+            document.getElementById('settingsLogoPreview').src = s.logoUrl;
+        }
+
+        function saveClinicSettings() {
+            appState.settings.clinicName = document.getElementById('settingClinicName').value;
+            appState.settings.tagline = document.getElementById('settingClinicTagline').value;
+            appState.settings.doctorDetails = document.getElementById('settingDoctorDetails').value;
+            appState.settings.phone = document.getElementById('settingClinicPhone').value;
+            appState.settings.address = document.getElementById('settingClinicAddress').value;
+            saveData();
+            applyBranding();
+            alert("Clinic Branding details updated successfully!");
+            logAudit("Updated Clinic Branding Info");
+        }
+
+        function handleLogoUpload(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    appState.settings.logoUrl = event.target.result;
+                    document.getElementById('settingsLogoPreview').src = event.target.result;
+                    saveData();
+                    applyBranding();
+                    logAudit("Uploaded new Clinic Logo image");
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        /* ==========================================================================
+           BACKUP & RESTORE SYSTEM (Req 1 - 5)
+           ========================================================================== */
+        function exportDataBackup() {
+            const backupPayload = {
+                appName: "CarePulse Clinic Management System",
+                version: "2.5.0",
+                backupDate: new Date().toISOString(),
+                data: appState
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupPayload, null, 2));
+            const downloadAnchor = document.createElement('a');
+            const dateFileName = new Date().toISOString().split('T')[0];
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `CLINIC-BACKUP-${dateFileName}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+
+            appState.settings.lastBackupDate = dateFileName;
+            saveData();
+            document.getElementById('backupReminderBanner').classList.add('hidden');
+            logAudit("Exported full JSON data backup");
+        }
+
+        function importDataBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    if (parsed.data && parsed.appName) {
+                        if (confirm("Are you sure you want to restore data? Current local data will be replaced!")) {
+                            appState = parsed.data;
+                            saveData();
+                            location.reload();
+                        }
+                    } else {
+                        alert("Invalid backup file format!");
+                    }
+                } catch (err) {
+                    alert("Error parsing backup JSON file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function checkBackupReminder() {
+            const last = new Date(appState.settings.lastBackupDate || "2020-01-01");
+            const now = new Date();
+            const diffDays = Math.ceil((now - last) / (1000 * 60 * 60 * 24));
+            if (diffDays > 3) {
+                document.getElementById('backupReminderBanner').classList.remove('hidden');
+            }
+        }
+
+        /* ==========================================================================
+           PATIENTS & QUEUE ENGINE (Req 1-20, 107)
+           ========================================================================== */
+        function renderPatientsTable(filterTag = 'ALL') {
+            const tbody = document.getElementById('patientTableBody');
+            tbody.innerHTML = '';
+
+            let list = appState.patients;
+            if (filterTag === 'VIP') list = list.filter(p => p.tag === 'VIP');
+            if (filterTag === 'CheckedIn') list = list.filter(p => p.status === 'CheckedIn');
+
+            list.forEach(p => {
+                const tr = document.createElement('tr');
+                tr.className = "hover:bg-slate-50 dark:hover:bg-slate-700/30 transition";
+                tr.innerHTML = `
+                    <td class="p-3 font-mono font-bold text-brand-600">
+                        ${p.id} <br><span class="text-[10px] bg-slate-200 dark:bg-slate-700 px-1.5 py-0.5 rounded text-slate-700 dark:text-slate-300">Token #${p.token}</span>
+                    </td>
+                    <td class="p-3 font-medium">${p.name}</td>
+                    <td class="p-3">${p.age} Yrs / ${p.gender}</td>
+                    <td class="p-3 font-mono">${p.phone}</td>
+                    <td class="p-3">
+                        <span class="px-2 py-0.5 rounded-full text-xs font-semibold ${p.status === 'CheckedIn' ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-600'}">
+                            ${p.status}
+                        </span>
+                    </td>
+                    <td class="p-3">
+                        ${p.tag === 'VIP' ? '<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold">VIP</span>' : ''}
+                        <span class="text-rose-500 text-xs block truncate max-w-[100px]">${p.allergies !== 'None' ? p.allergies : ''}</span>
+                    </td>
+                    <td class="p-3 text-right space-x-1">
+                        <button onclick="printReceptionSlip('${p.id}')" class="bg-brand-600 hover:bg-brand-700 text-white px-2 py-1 rounded text-xs" title="Print Token Reception Slip (Req 107)">
+                            <i class="fa-solid fa-print"></i> Slip
+                        </button>
+                        <button onclick="togglePatientCheckIn('${p.id}')" class="bg-slate-700 text-white px-2 py-1 rounded text-xs">
+                            ${p.status === 'CheckedIn' ? 'Check Out' : 'Check In'}
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function openNewPatientModal() {
+            document.getElementById('newPatientModal').classList.remove('hidden');
+        }
+
+        function closeModal(id) {
+            document.getElementById(id).classList.add('hidden');
+        }
+
+        function handlePatientRegistration(e) {
+            e.preventDefault();
+            const name = document.getElementById('pFormName').value;
+            const phone = document.getElementById('pFormPhone').value;
+            const age = document.getElementById('pFormAge').value;
+            const gender = document.getElementById('pFormGender').value;
+            const guardian = document.getElementById('pFormGuardian').value;
+            const tag = document.getElementById('pFormTag').value;
+            const allergies = document.getElementById('pFormAllergies').value || 'None';
+            const chronic = document.getElementById('pFormChronic').value || 'None';
+            const address = document.getElementById('pFormAddress').value;
+
+            // Pakistani Phone Validation (Req 105)
+            if (!/^03\d{9}$/.test(phone) && phone.length < 10) {
+                alert("Please enter a valid phone number (e.g., 03001234567)");
+                return;
+            }
+
+            const newId = 'P' + (1000 + appState.patients.length + 1);
+            const tokenNum = appState.patients.filter(p => p.status === 'CheckedIn').length + 1;
+
+            const newPatient = {
+                id: newId,
+                name: name,
+                phone: phone,
+                age: age,
+                gender: gender,
+                guardian: guardian,
+                tag: tag,
+                allergies: allergies,
+                chronic: chronic,
+                address: address,
+                status: 'CheckedIn',
+                token: tokenNum,
+                checkInTime: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            appState.patients.unshift(newPatient);
+            saveData();
+            renderPatientsTable();
+            renderDashboardMetrics();
+            renderEmrPatientQueue();
+            closeModal('newPatientModal');
+            document.getElementById('newPatientForm').reset();
+            logAudit(`Registered new patient ${newId} - ${name}`);
+
+            // Automatically Trigger Reception Token Print Slip (Req 107)
+            printReceptionSlip(newId);
+        }
+
+        // PRINT RECEPTION TOKEN SLIP (Req 107 & 108)
+        function printReceptionSlip(patientId) {
+            const p = appState.patients.find(x => x.id === patientId);
+            if (!p) return;
+
+            const s = appState.settings;
+            const printContent = `
+                <div style="font-family: Arial, sans-serif; text-align: center; max-width: 320px; margin: 0 auto; border: 1px solid #ccc; padding: 20px; background: #fff; color: #000;">
+                    <img src="${s.logoUrl}" style="height: 50px; margin-bottom: 5px; object-fit: contain;">
+                    <h2 style="margin: 0; font-size: 18px; color: #000;">${s.clinicName}</h2>
+                    <p style="margin: 2px 0; font-size: 11px; color: #555;">${s.tagline}</p>
+                    <p style="margin: 2px 0; font-size: 11px; color: #000;">Ph: ${s.phone}</p>
+                    <hr style="border: 0.5px solid #eee; margin: 10px 0;">
+                    
+                    <h1 style="font-size: 32px; margin: 5px 0; color: #0284c7;">TOKEN #${p.token}</h1>
+                    <p style="font-size: 12px; margin: 2px 0; color: #000;"><strong>Patient ID:</strong> ${p.id}</p>
+                    <p style="font-size: 14px; margin: 2px 0; font-weight: bold; color: #000;">${p.name}</p>
+                    <p style="font-size: 12px; margin: 2px 0; color: #000;">Age/Gender: ${p.age} Yrs / ${p.gender}</p>
+                    <p style="font-size: 12px; margin: 2px 0; color: #000;">Check-in Time: ${p.checkInTime || 'Just Now'}</p>
+                    <hr style="border: 0.5px solid #eee; margin: 10px 0;">
+                    <p style="font-size: 10px; color: #777;">Doctor: ${s.doctorDetails}</p>
+                    <p style="font-size: 10px; color: #888;">Thank you for waiting. Please present this slip when called.</p>
+                </div>
+            `;
+
+            const printableArea = document.getElementById('printableArea');
+            printableArea.innerHTML = printContent;
+            
+            // Brief timeout to ensure DOM update before triggering print
+            setTimeout(() => {
+                window.print();
+            }, 100);
+            
+            logAudit(`Printed OPD Reception Slip for Token #${p.token} (${p.id})`);
+        }
+
+        function togglePatientCheckIn(patientId) {
+            const p = appState.patients.find(x => x.id === patientId);
+            if (p) {
+                p.status = p.status === 'CheckedIn' ? 'CheckedOut' : 'CheckedIn';
+                if (p.status === 'CheckedIn') {
+                    p.token = appState.patients.filter(x => x.status === 'CheckedIn').length + 1;
+                    p.checkInTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                }
+                saveData();
+                renderPatientsTable();
+                renderDashboardMetrics();
+                renderEmrPatientQueue();
+            }
+        }
+
+        /* ==========================================================================
+           APPOINTMENT SCHEDULER ENGINE (Req 21-35)
+           ========================================================================== */
+        function renderAppointmentsList() {
+            const container = document.getElementById('appointmentsList');
+            container.innerHTML = '';
+
+            appState.appointments.forEach(app => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 dark:bg-slate-700/50 rounded-lg flex items-center justify-between border dark:border-slate-700";
+                div.innerHTML = `
+                    <div class="flex items-center space-x-3">
+                        <div class="text-center font-bold px-2 py-1 bg-brand-100 text-brand-800 rounded">
+                            <span class="text-xs block">${app.time}</span>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold">${app.patientName} (${app.patientId})</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Date: ${app.date}</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <span class="px-2 py-0.5 rounded text-xs font-semibold ${app.status === 'Confirmed' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${app.status}</span>
+                        <button onclick="cancelAppointment('${app.id}')" class="text-rose-500 hover:text-rose-700 text-xs">Cancel</button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function openBookingModal() {
+            const sel = document.getElementById('appPatientSelect');
+            sel.innerHTML = '<option value="">Select Patient</option>';
+            appState.patients.forEach(p => {
+                sel.innerHTML += `<option value="${p.id}">${p.name} (${p.id})</option>`;
+            });
+            document.getElementById('bookingModal').classList.remove('hidden');
+        }
+
+        function handleBookAppointment(e) {
+            e.preventDefault();
+            const pId = document.getElementById('appPatientSelect').value;
+            const p = appState.patients.find(x => x.id === pId);
+            const date = document.getElementById('appDate').value;
+            const time = document.getElementById('appTimeSlot').value;
+
+            const newApp = {
+                id: 'APP-' + (100 + appState.appointments.length + 1),
+                patientId: pId,
+                patientName: p ? p.name : 'Guest',
+                date: date,
+                time: time,
+                status: 'Confirmed'
+            };
+
+            appState.appointments.push(newApp);
+            saveData();
+            renderAppointmentsList();
+            renderDashboardMetrics();
+            closeModal('bookingModal');
+            alert(`Appointment Confirmed for ${newApp.patientName} on ${date} at ${time}`);
+            logAudit(`Booked Appointment ${newApp.id} for ${newApp.patientName}`);
+        }
+
+        function cancelAppointment(id) {
+            appState.appointments = appState.appointments.filter(a => a.id !== id);
+            saveData();
+            renderAppointmentsList();
+            logAudit(`Cancelled Appointment ${id}`);
+        }
+
+        /* ==========================================================================
+           DOCTOR DESK & EMR ENGINE (Req 36-60)
+           ========================================================================== */
+        function renderEmrPatientQueue() {
+            const sel = document.getElementById('emrPatientSelect');
+            sel.innerHTML = '<option value="">-- Choose Patient from Today Queue --</option>';
+            appState.patients.filter(p => p.status === 'CheckedIn').forEach(p => {
+                sel.innerHTML += `<option value="${p.id}">Token #${p.token} - ${p.name} (${p.id})</option>`;
+            });
+        }
+
+        function onEmrPatientSelect(patientId) {
+            const p = appState.patients.find(x => x.id === patientId);
+            const summary = document.getElementById('emrPatientSummary');
+            if (p) {
+                summary.classList.remove('hidden');
+                document.getElementById('emrPName').innerText = p.name;
+                document.getElementById('emrPAge').innerText = `${p.age} Yrs / ${p.gender}`;
+                document.getElementById('emrPAllergies').innerText = p.allergies;
+            } else {
+                summary.classList.add('hidden');
+            }
+        }
+
+        function calculateBMI() {
+            const wt = parseFloat(document.getElementById('vitalWeight').value);
+            const ht = parseFloat(document.getElementById('vitalHeight').value) / 100; // cm to meters
+            if (wt > 0 && ht > 0) {
+                const bmi = (wt / (ht * ht)).toFixed(1);
+                document.getElementById('vitalBMI').value = bmi;
+            }
+        }
+
+        function addPrescriptionRow(med = '', dose = '1-0-1', freq = 'After Meal', days = '5') {
+            const tbody = document.getElementById('emrRxTableBody');
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="p-1"><input type="text" value="${med}" placeholder="Tab Paracetamol 500mg" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1 dark:text-white"></td>
+                <td class="p-1"><input type="text" value="${dose}" placeholder="1-0-1" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1 dark:text-white"></td>
+                <td class="p-1"><input type="text" value="${freq}" placeholder="After Meal" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1 dark:text-white"></td>
+                <td class="p-1"><input type="text" value="${days}" placeholder="5 Days" class="w-full bg-slate-50 dark:bg-slate-700 border rounded p-1 dark:text-white"></td>
+                <td class="p-1 text-right"><button onclick="this.closest('tr').remove()" class="text-rose-500 font-bold px-2">X</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        function loadRxTemplate(type) {
+            const tbody = document.getElementById('emrRxTableBody');
+            tbody.innerHTML = '';
+            if (type === 'Fever') {
+                addPrescriptionRow('Tab Paracetamol 500mg', '1-1-1', 'After Meal', '3 Days');
+                addPrescriptionRow('Cap Amoxicillin 500mg', '1-0-1', 'After Meal', '5 Days');
+            } else if (type === 'Diabetes') {
+                addPrescriptionRow('Tab Metformin 500mg', '1-0-1', 'Before Meal', '30 Days');
+            }
+        }
+
+        function saveAndPrintPrescription() {
+            const patientId = document.getElementById('emrPatientSelect').value;
+            const p = appState.patients.find(x => x.id === patientId);
+            if (!p) {
+                alert("Please select a patient first!");
+                return;
+            }
+
+            const s = appState.settings;
+            const complaints = document.getElementById('emrComplaints').value;
+            const diagnosis = document.getElementById('emrDiagnosis').value;
+            const bp = document.getElementById('vitalBP').value || '120/80';
+            const pulse = document.getElementById('vitalPulse').value || '72';
+            const temp = document.getElementById('vitalTemp').value || '98.6';
+
+            // Gather Rx Rows
+            let rxHtml = '';
+            document.querySelectorAll('#emrRxTableBody tr').forEach(tr => {
+                const inputs = tr.querySelectorAll('input');
+                if (inputs[0].value) {
+                    rxHtml += `<tr>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee; color: #000;"><strong>${inputs[0].value}</strong></td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee; color: #000;">${inputs[1].value}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee; color: #000;">${inputs[2].value}</td>
+                        <td style="padding: 6px; border-bottom: 1px solid #eee; color: #000;">${inputs[3].value}</td>
+                    </tr>`;
+                }
+            });
+
+            const printContent = `
+                <div style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; background: #fff; color: #000;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0284c7; padding-bottom: 10px;">
+                        <div>
+                            <h1 style="margin: 0; font-size: 24px; color: #0284c7;">${s.clinicName}</h1>
+                            <p style="margin: 2px 0; font-size: 12px; color: #555;">${s.tagline}</p>
+                            <p style="margin: 2px 0; font-size: 12px; color: #000;">${s.address} | Ph: ${s.phone}</p>
+                        </div>
+                        <img src="${s.logoUrl}" style="height: 65px; object-fit: contain;">
+                    </div>
+
+                    <div style="margin-top: 10px; font-size: 13px; font-weight: bold; color: #333;">
+                        Doctor: ${s.doctorDetails}
+                    </div>
+
+                    <div style="background: #f8fafc; padding: 10px; border-radius: 6px; margin: 15px 0; font-size: 12px; display: flex; justify-content: space-between; color: #000;">
+                        <div><strong>Patient:</strong> ${p.name} (${p.id})</div>
+                        <div><strong>Age/Gender:</strong> ${p.age} Yrs / ${p.gender}</div>
+                        <div><strong>Date:</strong> ${new Date().toLocaleDateString()}</div>
+                    </div>
+
+                    <div style="display: flex; gap: 20px; font-size: 12px; color: #000;">
+                        <div style="width: 30%; border-right: 1px solid #eee; padding-right: 15px;">
+                            <h4 style="color: #0284c7; margin-bottom: 5px;">VITALS</h4>
+                            <p>BP: ${bp} mmHg</p>
+                            <p>Pulse: ${pulse} bpm</p>
+                            <p>Temp: ${temp} °F</p>
+                            
+                            <h4 style="color: #0284c7; margin-top: 15px; margin-bottom: 5px;">DIAGNOSIS</h4>
+                            <p>${diagnosis}</p>
+                        </div>
+                        <div style="width: 70%;">
+                            <h3 style="font-size: 20px; font-style: italic; color: #0284c7; margin-top: 0;">Rx</h3>
+                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+                                <thead>
+                                    <tr style="background: #e0f2fe; color: #000;">
+                                        <th style="padding: 6px;">Medicine</th>
+                                        <th style="padding: 6px;">Dosage</th>
+                                        <th style="padding: 6px;">Frequency</th>
+                                        <th style="padding: 6px;">Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${rxHtml || '<tr><td colspan="4" style="padding: 10px; text-align: center; color: #000;">No medicines prescribed.</td></tr>'}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 50px; text-align: right; font-size: 12px; color: #000;">
+                        <p style="margin-bottom: 40px;">Doctor Signature</p>
+                        <p>__________________________</p>
+                        <p><strong>${s.doctorDetails}</strong></p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('printableArea').innerHTML = printContent;
+            setTimeout(() => {
+                window.print();
+            }, 100);
+            
+            logAudit(`Saved and Printed E-Prescription for ${p.name} (${p.id})`);
+        }
+
+        /* ==========================================================================
+           BILLING & PHARMACY ENGINE (Req 61-80)
+           ========================================================================== */
+        function renderBillingTable() {
+            const tbody = document.getElementById('billingTableBody');
+            tbody.innerHTML = '';
+            let totalRev = 0;
+
+            appState.bills.forEach(b => {
+                totalRev += Number(b.amount);
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2 font-mono">${b.id}</td>
+                    <td class="p-2 font-medium">${b.patientName}</td>
+                    <td class="p-2 font-bold text-emerald-600">Rs ${b.amount}</td>
+                    <td class="p-2">${b.mode}</td>
+                    <td class="p-2 text-slate-500">${b.date}</td>
+                    <td class="p-2 text-right">
+                        <button onclick="printInvoice('${b.id}')" class="text-brand-600 hover:underline">Print</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            document.getElementById('summaryTotalRevenue').innerText = 'Rs ' + totalRev;
+            calculateNetProfit();
+        }
+
+        function saveClinicExpense() {
+            const title = document.getElementById('expenseTitle').value;
+            const amt = parseFloat(document.getElementById('expenseAmount').value);
+            if (title && amt > 0) {
+                appState.expenses.push({ title, amount: amt, date: new Date().toISOString().split('T')[0] });
+                saveData();
+                document.getElementById('expenseTitle').value = '';
+                document.getElementById('expenseAmount').value = '';
+                renderBillingTable();
+                logAudit(`Added Clinic Expense: ${title} (Rs ${amt})`);
+            }
+        }
+
+        function calculateNetProfit() {
+            let totalRev = appState.bills.reduce((acc, b) => acc + Number(b.amount), 0);
+            let totalExp = appState.expenses.reduce((acc, e) => acc + Number(e.amount), 0);
+            let net = totalRev - totalExp;
+
+            document.getElementById('summaryTotalExpenses').innerText = 'Rs ' + totalExp;
+            document.getElementById('summaryNetProfit').innerText = 'Rs ' + net;
+        }
+
+        function renderPharmacyStock() {
+            const tbody = document.getElementById('pharmacyStockTable');
+            tbody.innerHTML = '';
+
+            appState.pharmacy.forEach(med => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2.5 font-medium">${med.name}</td>
+                    <td class="p-2.5 font-mono text-slate-500">${med.batch}</td>
+                    <td class="p-2.5 font-bold ${med.stock < 50 ? 'text-rose-500' : 'text-emerald-600'}">${med.stock} units</td>
+                    <td class="p-2.5">Rs ${med.price}</td>
+                    <td class="p-2.5">${med.expiry}</td>
+                    <td class="p-2.5">
+                        ${med.stock < 50 ? '<span class="bg-rose-100 text-rose-800 px-2 py-0.5 rounded text-[10px]">Low Stock</span>' : '<span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-[10px]">In Stock</span>'}
+                    </td>
+                    <td class="p-2.5 text-right"><button class="text-slate-400 hover:text-slate-600">Edit</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderLabOrders() {
+            const tbody = document.getElementById('labOrdersTableBody');
+            tbody.innerHTML = '';
+            if (appState.labOrders.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-4 text-center text-slate-400">No active lab orders found.</td></tr>`;
+            }
+        }
+
+        function renderStaffTable() {
+            const tbody = document.getElementById('staffTableBody');
+            tbody.innerHTML = '';
+            appState.staff.forEach(st => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="p-2.5 font-medium">${st.name}</td>
+                    <td class="p-2.5">${st.role}</td>
+                    <td class="p-2.5"><span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded text-xs">${st.status}</span></td>
+                    <td class="p-2.5 font-mono">Rs ${st.salary}</td>
+                    <td class="p-2.5 text-right"><button class="text-brand-600 hover:underline">Pay Slip</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function renderAuditLogs() {
+            const list = document.getElementById('auditLogList');
+            if (list) {
+                list.innerHTML = appState.auditLogs.map(log => `<div>${log}</div>`).join('');
+            }
+        }
+
+        /* ==========================================================================
+           DASHBOARD METRICS & AI ASSISTANT (Req 95 & 100)
+           ========================================================================== */
+        function renderDashboardMetrics() {
+            const checkedInCount = appState.patients.filter(p => p.status === 'CheckedIn').length;
+            document.getElementById('statTodayVisits').innerText = checkedInCount;
+            document.getElementById('statTodayAppointments').innerText = appState.appointments.length;
+            
+            const totalRev = appState.bills.reduce((acc, b) => acc + Number(b.amount), 0);
+            document.getElementById('statTodayRevenue').innerText = 'Rs ' + totalRev;
+            document.getElementById('liveQueueCount').innerText = `${checkedInCount} Patients`;
+
+            // Live Queue Dashboard List
+            const queueList = document.getElementById('dashboardQueueList');
+            queueList.innerHTML = '';
+            appState.patients.filter(p => p.status === 'CheckedIn').forEach(p => {
+                const item = document.createElement('div');
+                item.className = "p-2 bg-slate-50 dark:bg-slate-700/40 rounded flex items-center justify-between border dark:border-slate-700";
+                item.innerHTML = `
+                    <div class="flex items-center space-x-2">
+                        <span class="w-6 h-6 bg-brand-600 text-white rounded-full flex items-center justify-center font-bold text-xs">${p.token}</span>
+                        <span class="font-medium">${p.name}</span>
+                    </div>
+                    <span class="text-[10px] text-slate-500">${p.checkInTime}</span>
+                `;
+                queueList.appendChild(item);
+            });
+
+            // Update TV Screen Token Display
+            const activeQueue = appState.patients.filter(p => p.status === 'CheckedIn');
+            if (activeQueue.length > 0) {
+                document.getElementById('tvCurrentToken').innerText = `TOKEN #${activeQueue[0].token}`;
+                document.getElementById('tvCurrentPatient').innerText = `${activeQueue[0].name} (${activeQueue[0].id})`;
+            } else {
+                document.getElementById('tvCurrentToken').innerText = `--`;
+                document.getElementById('tvCurrentPatient').innerText = `No patient in queue`;
+            }
+        }
+
+        function openAiModal() {
+            document.getElementById('aiModal').classList.remove('hidden');
+        }
+
+        function handleAiQuery() {
+            const query = document.getElementById('aiQueryInput').value.toLowerCase();
+            const chatBox = document.getElementById('aiChatBox');
+            if (!query) return;
+
+            // User Message
+            chatBox.innerHTML += `<div class="bg-slate-200 dark:bg-slate-700 p-2 rounded max-w-[85%] ml-auto text-right">${query}</div>`;
+            document.getElementById('aiQueryInput').value = '';
+
+            let reply = "I am trained on your local clinic data. Try asking about patients, revenue, or active tokens.";
+
+            if (query.includes("revenue") || query.includes("income") || query.includes("money")) {
+                const total = appState.bills.reduce((acc, b) => acc + Number(b.amount), 0);
+                reply = `Total recorded revenue today is **Rs ${total}** from ${appState.bills.length} invoices.`;
+            } else if (query.includes("patient") || query.includes("queue")) {
+                const count = appState.patients.filter(p => p.status === 'CheckedIn').length;
+                reply = `There are currently **${count} patients** waiting in the active OPD queue.`;
+            } else if (query.includes("p1001")) {
+                reply = `Patient P1001 (Muhammad Ali) has known allergy to **Penicillin** and history of **Hypertension**.`;
+            }
+
+            setTimeout(() => {
+                chatBox.innerHTML += `<div class="bg-indigo-100 dark:bg-indigo-950/60 p-2 rounded max-w-[85%] text-indigo-900 dark:text-indigo-200">${reply}</div>`;
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 400);
+        }
+
+        function handleGlobalSearch(query) {
+            const dropdown = document.getElementById('searchResultsDropdown');
+            if (!query) {
+                dropdown.classList.add('hidden');
+                return;
+            }
+
+            const matches = appState.patients.filter(p => 
+                p.name.toLowerCase().includes(query.toLowerCase()) || 
+                p.id.toLowerCase().includes(query.toLowerCase()) ||
+                p.phone.includes(query)
+            );
+
+            if (matches.length > 0) {
+                dropdown.classList.remove('hidden');
+                dropdown.innerHTML = matches.map(p => `
+                    <div onclick="printReceptionSlip('${p.id}'); document.getElementById('searchResultsDropdown').classList.add('hidden');" class="p-2.5 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer text-xs border-b border-slate-100 dark:border-slate-700 flex justify-between items-center">
+                        <div>
+                            <strong class="text-brand-600">${p.id}</strong> - ${p.name} (${p.age}Y)
+                            <span class="block text-[10px] text-slate-400">Ph: ${p.phone}</span>
+                        </div>
+                        <span class="text-[10px] bg-brand-100 text-brand-800 px-2 py-0.5 rounded font-bold">Print Slip</span>
+                    </div>
+                `).join('');
+            } else {
+                dropdown.classList.add('hidden');
+            }
+        }
+
+        function toggleFullScreenTv() {
+            const elem = document.getElementById('tvContainer');
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            }
+        }
+
+        function changeUserRole(role) {
+            appState.currentRole = role;
+            logAudit(`Switched active user role to ${role}`);
+        }
+
+        function switchBranch(branch) {
+            appState.currentBranch = branch;
+            logAudit(`Switched clinic branch context to ${branch}`);
+        }
+    </script>
+</body>
+</html>
